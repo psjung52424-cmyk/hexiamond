@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/31942585/README.md)
 # Hexiamond Arena
 
 육각형 보드 위에 삼각형 블록을 놓아 줄을 지우는 퍼즐 게임.
@@ -61,6 +60,49 @@ C = ⌈(g + r) / 2⌉      (↘)
 1. 저장소 → **Settings** → **Pages**
 2. Source 를 `Deploy from a branch`, 브랜치를 `main` / `root` 로 지정
 3. 잠시 뒤 `https://<사용자명>.github.io/hexiamond/` 에서 열립니다
+
+## 사운드
+
+외부 음원 파일 없이 **Web Audio API로 직접 합성**합니다. 파일이 여전히 `index.html` 하나로 유지됩니다.
+
+| 상황 | 소리 |
+|---|---|
+| 조각 배치 | 짧은 저역 클릭 |
+| 놓을 수 없는 자리 | 하강하는 둔탁음 |
+| 라인 소멸 | 펜타토닉 아르페지오 — 동시 소멸 줄 수만큼 음이 늘고, 콤보가 쌓이면 조를 올려 잡습니다 |
+| 위험 구간 진입 | 경고음 2회 (진입 시 1회만) |
+| 게임 오버 | 하강 4음 |
+
+우측 하단 `사운드` 버튼으로 끄고 켤 수 있으며 설정은 `localStorage`에 남습니다.
+
+## 시각 경고
+
+현재 조각을 놓을 수 있는 자리가 **4곳 이하로 줄면** 보드 테두리가 붉게 점멸하고 경고 문구가 뜹니다.
+회전이 불가능하기 때문에 "이 조각이 들어갈 자리가 남았는가"가 곧 생존 조건입니다.
+
+## 리더보드
+
+Firebase Realtime Database에 연결되어 있어 **같은 주소를 연 모든 사람의 기록이 함께 쌓입니다.**
+
+```js
+var DB_URL = "https://hexiamond-511c6-default-rtdb.asia-southeast1.firebasedatabase.app";
+```
+
+SDK 없이 **REST API** (`/scores.json`)로만 통신하므로 추가 스크립트 로드가 없습니다.
+`DB_URL` 을 빈 문자열로 두면 `localStorage` 기반 로컬 랭킹으로 자동 전환되며, UI는 동일하게 동작합니다.
+
+> **주의 — 보안 규칙 만료**
+> 현재 테스트 모드 규칙이라 **2026년 10월 8일에 읽기·쓰기가 차단**됩니다.
+> 그 전에 콘솔의 `규칙` 탭에서 아래로 교체하세요. 지금은 주소를 아는 누구나
+> 점수를 쓰고 지울 수 있으므로 수업용 이상으로는 쓰지 마세요.
+
+```json
+{
+  "rules": {
+    "scores": { ".read": true, ".write": true }
+  }
+}
+```
 
 ## 저장 데이터
 

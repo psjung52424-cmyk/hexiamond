@@ -166,6 +166,13 @@
   }
   .rp .nums b{font-weight:800}
   .rp .nums .s{color:var(--amber)}
+  .rp .spd{display:inline-flex;gap:3px;pointer-events:auto}
+  .rp .spd button{
+    padding:2px 6px;font-size:9px;letter-spacing:.02em;text-transform:none;
+    border-radius:2px;border:1px solid var(--line);background:rgba(20,24,38,.9);color:var(--muted);
+  }
+  .rp .spd button:hover{border-color:var(--rose);color:var(--text)}
+  .rp .spd button.on{border-color:var(--rose);color:var(--rose)}
   .rp .track{position:absolute;left:8%;right:8%;bottom:2px;height:2px;background:var(--line);border-radius:2px}
   .rp .fill{height:100%;width:0;background:var(--rose);border-radius:2px;transition:width .08s linear}
 
@@ -183,6 +190,65 @@
   .over .final{font-family:"Oxanium",sans-serif;font-weight:800;font-size:50px;line-height:1;color:var(--amber);font-variant-numeric:tabular-nums}
   .over .sub{font-size:12px;color:var(--muted);text-align:center;line-height:1.7}
   .over .sub em{font-style:normal;color:var(--text);font-family:"Oxanium",sans-serif;font-weight:600}
+
+  /* ---------- danger alert ---------- */
+  .stage::after{
+    content:"";position:absolute;inset:-5px;border:1px solid transparent;border-radius:6px;
+    pointer-events:none;transition:border-color .2s;
+  }
+  .stage.danger::after{border-color:var(--rose);animation:warn 1.1s ease-in-out infinite}
+  @keyframes warn{0%,100%{opacity:.25}50%{opacity:.9}}
+  .warnTag{
+    position:absolute;top:2px;left:0;right:0;text-align:center;
+    font-family:"Oxanium",sans-serif;font-weight:800;font-size:9.5px;letter-spacing:.2em;
+    color:var(--rose);text-shadow:0 2px 10px rgba(12,14,21,.95);display:none;
+  }
+  .stage.danger .warnTag{display:block;animation:warn 1.1s ease-in-out infinite}
+
+  /* ---------- registration ---------- */
+  .reg{display:flex;gap:6px;align-items:center}
+  .reg input{
+    font-family:"IBM Plex Sans KR",sans-serif;font-size:12px;
+    background:var(--panel);border:1px solid var(--line);border-radius:3px;
+    color:var(--text);padding:8px 10px;width:130px;
+  }
+  .reg input:focus{outline:none;border-color:var(--amber)}
+  .reg .done{font-size:11px;color:var(--mint)}
+
+  /* ---------- leaderboard ---------- */
+  .lb{
+    position:absolute;inset:0;display:none;flex-direction:column;z-index:4;
+    background:rgba(12,14,21,.96);backdrop-filter:blur(3px);border-radius:4px;padding:10px 12px;
+  }
+  .lb.on{display:flex}
+  .lbhead{
+    display:flex;align-items:center;gap:8px;padding-bottom:7px;border-bottom:1px solid var(--line);
+    font-family:"Oxanium",sans-serif;font-weight:800;letter-spacing:.14em;text-transform:uppercase;font-size:11px;
+  }
+  .lbhead .mode{
+    font-size:8.5px;letter-spacing:.1em;padding:2px 6px;border-radius:2px;
+    background:var(--panel);border:1px solid var(--line);color:var(--muted);
+  }
+  .lbhead .mode.live{color:var(--mint);border-color:var(--mint)}
+  .lbhead .x{margin-left:auto;padding:3px 9px;font-size:11px}
+  .lblist{list-style:none;margin:0;padding:4px 0 0;flex:1;overflow-y:auto;font-size:12px}
+  .lblist li{
+    display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:baseline;
+    padding:5px 2px;border-bottom:1px solid rgba(35,42,60,.6);
+  }
+  .lblist .rk{font-family:"Oxanium",sans-serif;font-weight:800;color:var(--dim);font-variant-numeric:tabular-nums}
+  .lblist li:nth-child(1) .rk{color:var(--amber)}
+  .lblist li:nth-child(2) .rk,.lblist li:nth-child(3) .rk{color:var(--muted)}
+  .lblist .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lblist .sc{font-family:"Oxanium",sans-serif;font-weight:800;color:var(--amber);font-variant-numeric:tabular-nums}
+  .lblist li.me{background:rgba(240,169,60,.1)}
+  .lbfoot{padding-top:7px;font-size:10px;color:var(--dim);line-height:1.5;text-align:center}
+  .lbempty{color:var(--dim);font-size:11px;text-align:center;padding:22px 0}
+
+  /* ---------- button row ---------- */
+  .btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .btns button{padding:8px 4px;font-size:10px;letter-spacing:.05em}
+  button.off{color:var(--dim);border-color:var(--line)}
 
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.01ms !important;transition-duration:.01ms !important}
@@ -208,17 +274,36 @@
     <div class="rp" id="rp">
       <div class="top"><span class="dot"></span>REPLAY
         <span class="nums"><b id="rpMove">0</b>수 · <b class="s" id="rpScore">0</b></span>
+        <span class="spd" id="rpSpd">
+          <button data-s="0.5">0.5×</button>
+          <button data-s="1">1×</button>
+          <button data-s="2">2×</button>
+          <button data-s="4">4×</button>
+        </span>
       </div>
       <div class="track"><div class="fill" id="rpBar"></div></div>
     </div>
+    <div class="warnTag" id="warnTag">놓을 자리가 얼마 없습니다</div>
     <div class="over" id="over">
       <h2>No Moves Left</h2>
       <div class="final" id="finalScore">0</div>
       <div class="sub" id="finalSub"></div>
+      <div class="reg" id="reg">
+        <input id="regName" maxlength="10" placeholder="닉네임" autocomplete="off" spellcheck="false">
+        <button id="regBtn">기록 등록</button>
+      </div>
       <div style="display:flex;gap:8px">
         <button class="primary" id="againBtn">다시 시작</button>
         <button id="replayBtn">타임랩스</button>
       </div>
+    </div>
+    <div class="lb" id="lb">
+      <div class="lbhead">Leaderboard
+        <span class="mode" id="lbMode">로컬</span>
+        <button class="x" id="lbClose">닫기</button>
+      </div>
+      <ol class="lblist" id="lbList"></ol>
+      <div class="lbfoot" id="lbFoot"></div>
     </div>
   </div>
 
@@ -233,18 +318,88 @@
     <div class="nx" id="nx"><span class="tag">Next</span></div>
   </div>
 
-  <div class="bar">
-    <div class="hint">조각은 방향 고정 · 보드를 클릭해 배치</div>
-    <div style="display:flex;gap:8px">
-      <button id="lapseBtn">타임랩스</button>
-      <button id="resetBtn">리셋</button>
-    </div>
+  <div class="hint">조각은 방향 고정 · 보드를 클릭해 배치</div>
+
+  <div class="btns">
+    <button id="soundBtn">사운드 ON</button>
+    <button id="lbBtn">랭킹</button>
+    <button id="lapseBtn">타임랩스</button>
+    <button id="resetBtn">리셋</button>
   </div>
 </div>
 
 <script>
 (function(){
   "use strict";
+
+  /* ═══════════════════════════════════════════════════════════════
+     리더보드 설정 — 여기 한 줄만 채우면 전역 랭킹이 켜집니다.
+     Firebase 콘솔 → Realtime Database → 데이터베이스 URL 복사 후 붙여넣기.
+     예:  var DB_URL = "https://hexiamond-1234-default-rtdb.firebaseio.com";
+     비워두면 이 브라우저에만 저장되는 로컬 랭킹으로 동작합니다.
+     ═══════════════════════════════════════════════════════════════ */
+  var DB_URL = "https://hexiamond-511c6-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+  /* ===== 사운드 (Web Audio · 외부 파일 없이 합성) ===== */
+  var actx = null, muted = false;
+  try { muted = localStorage.getItem("hexiamond.muted") === "1"; } catch(e){}
+
+  function ac(){
+    if (!actx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      try { actx = new AC(); } catch(e){ return null; }
+    }
+    if (actx.state === "suspended") actx.resume();
+    return actx;
+  }
+  function tone(freq, dur, type, vol, delay, sweepTo){
+    if (muted) return;
+    var a = ac(); if (!a) return;
+    var t = a.currentTime + (delay || 0);
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || "triangle";
+    o.frequency.setValueAtTime(freq, t);
+    if (sweepTo) o.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.16, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t + dur + 0.03);
+  }
+  function crunch(dur, vol, delay){
+    if (muted) return;
+    var a = ac(); if (!a) return;
+    var t = a.currentTime + (delay || 0);
+    var n = Math.floor(a.sampleRate * dur);
+    var buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.4);
+    var src = a.createBufferSource(); src.buffer = buf;
+    var f = a.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1500; f.Q.value = 0.8;
+    var g = a.createGain(); g.gain.value = vol || 0.2;
+    src.connect(f); f.connect(g); g.connect(a.destination);
+    src.start(t);
+  }
+
+  var PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];   // 펜타토닉 — 어떻게 겹쳐도 불협이 없음
+  function sPlace(){ tone(196, .085, "triangle", .11); tone(294, .05, "sine", .05, .012); }
+  function sDeny(){ tone(96, .1, "sine", .09, 0, 72); }
+  function sClear(k, combo){
+    crunch(.26, .16 + .05 * k);
+    var base = 392 * Math.pow(2, Math.min(combo - 1, 6) * 0.055);
+    var notes = 2 + Math.min(k, 4);
+    for (var i = 0; i < notes; i++){
+      tone(base * Math.pow(2, PENTA[i] / 12), .2, "triangle", .13, i * 0.058);
+    }
+    if (k >= 2) tone(base / 2, .42, "sine", .12, 0, base / 3);
+  }
+  function sWarn(){ tone(660, .1, "square", .05); tone(660, .1, "square", .05, .16); }
+  function sOver(){
+    [523.25, 415.30, 349.23, 261.63].forEach(function(f, i){
+      tone(f, .4, "triangle", .12, i * 0.13);
+    });
+  }
+  function sUI(){ tone(880, .035, "sine", .05); }
 
   /* ===== 삼각 격자 =====
      행 r, 전역 열 g. 위를 향한 삼각형 ⟺ (r+g) 홀수.
@@ -334,12 +489,14 @@
 
   /* ===== 조각 ===== */
   var PIECES = [
-    { id: "d2",  base: [[0,1],[0,2]],             w: 16 },
-    { id: "t3",  base: [[0,1],[0,2],[0,3]],       w: 20 },
-    { id: "i4",  base: [[0,1],[0,2],[0,3],[0,4]], w: 13 },
-    { id: "p4",  base: [[0,1],[1,0],[1,1],[1,2]], w: 14 },
-    { id: "c4",  base: [[0,1],[0,2],[0,3],[1,3]], w: 12 },
-    { id: "c4m", base: [[0,1],[0,2],[0,3],[1,1]], w: 12 }
+    { id: "m1",  base: [[0,1]],                                 w: 5  },  // 삼각형 1개 — 구제용, 낮은 확률
+    { id: "d2",  base: [[0,1],[0,2]],                           w: 15 },  // 마름모
+    { id: "t3",  base: [[0,1],[0,2],[0,3]],                     w: 19 },  // 사다리꼴
+    { id: "i4",  base: [[0,1],[0,2],[0,3],[0,4]],               w: 12 },  // 평행사변형
+    { id: "p4",  base: [[0,1],[1,0],[1,1],[1,2]],               w: 13 },  // 큰 삼각형
+    { id: "c4",  base: [[0,1],[0,2],[0,3],[1,3]],               w: 11 },  // 갈고리
+    { id: "c4m", base: [[0,1],[0,2],[0,3],[1,1]],               w: 11 },  // 갈고리(반대)
+    { id: "h6",  base: [[0,1],[0,2],[0,3],[1,1],[1,2],[1,3]],   w: 7  }   // 정육각형 — 게임 이름이 된 조각
   ];
   PIECES.forEach(function(p){ p.ori = orientations(p.base); });
   var WSUM = PIECES.reduce(function(s, p){ return s + p.w; }, 0);
@@ -502,11 +659,13 @@
   }
 
   function commit(){
-    if (over || busy || replaying || !ghost) return;
+    if (over || busy || replaying) return;
+    if (!ghost){ sDeny(); return; }
 
     var placed = ghost.cells;
     var pkeys = placed.map(function(c){ return ck(c.r, c.g); });
     placed.forEach(function(c){ c.filled = true; });
+    sPlace();
     score += placed.length;
     ghost = null;
 
@@ -522,6 +681,7 @@
       score += gained;
       lines += k;
       toast(k, gained, full[0].hue);
+      sClear(k, combo);
 
       var doomed = Object.create(null);
       full.forEach(function(b){ b.cells.forEach(function(c){ doomed[ck(c.r, c.g)] = b.hue; }); });
@@ -554,6 +714,33 @@
   }
 
   /* ===== 타임랩스 ===== */
+  /* 기본 속도(1×)는 판의 길이와 무관하게 전체가 약 11초에 들어오도록 맞춘 값이다.
+     배속은 재생 중에 바꿔도 다음 수부터 바로 반영된다. */
+  var lapseSpeed = 1;
+  try { lapseSpeed = parseFloat(localStorage.getItem("hexiamond.speed")) || 1; } catch(e){}
+
+  function stepMs(){
+    var base = Math.max(46, Math.min(240, 11000 / Math.max(1, history.length)));
+    return base / lapseSpeed;
+  }
+  function paintSpeed(){
+    var btns = document.getElementById("rpSpd").getElementsByTagName("button");
+    for (var i = 0; i < btns.length; i++){
+      btns[i].className = parseFloat(btns[i].getAttribute("data-s")) === lapseSpeed ? "on" : "";
+    }
+  }
+  (function bindSpeed(){
+    var wrap = document.getElementById("rpSpd");
+    wrap.addEventListener("click", function(ev){
+      var b = ev.target.closest ? ev.target.closest("button") : null;
+      if (!b) return;
+      lapseSpeed = parseFloat(b.getAttribute("data-s"));
+      try { localStorage.setItem("hexiamond.speed", String(lapseSpeed)); } catch(e){}
+      paintSpeed();
+    });
+    paintSpeed();
+  })();
+
   function playback(){
     if (replaying || !history.length) return;
     replaying = true;
@@ -569,7 +756,6 @@
     ov.classList.remove("on");
     rp.classList.add("on");
 
-    var step = Math.max(46, Math.min(240, 11000 / history.length));
     var i = 0;
 
     function finish(){
@@ -594,6 +780,7 @@
       document.getElementById("rpBar").style.width = (i / history.length * 100).toFixed(1) + "%";
       paint();
 
+      var step = stepMs();
       if (mv.cleared){
         var keys = Object.keys(mv.cleared);
         keys.forEach(function(k){
@@ -606,7 +793,7 @@
           if (!replaying) return;
           keys.forEach(function(k){ cellMap[k].filled = false; });
           paint();
-          setTimeout(next, Math.max(24, step * 0.55));
+          setTimeout(next, Math.max(24, stepMs() * 0.55));
         }, Math.min(210, step));
       } else {
         setTimeout(next, step);
@@ -620,16 +807,31 @@
     cur = nxt; nxt = randPiece();
     renderDeck();
     paint();
-    if (!anyMove()) endGame();
+
+    var n = countMoves();
+    if (n === 0){ endGame(); return; }
+
+    var st = document.querySelector(".stage");
+    var wasDanger = st.classList.contains("danger");
+    if (n <= 4){
+      st.classList.add("danger");
+      if (!wasDanger) sWarn();           // 위험 구간 진입 시 1회만 경고
+    } else {
+      st.classList.remove("danger");
+    }
   }
 
-  function anyMove(){
-    if (!cur) return false;
-    var shape = shapeOf(cur);            // 회전 불가 → 현재 방향만 검사
+  /* 현재 조각(방향 고정)이 들어갈 수 있는 서로 다른 자리의 개수 */
+  function countMoves(){
+    if (!cur) return 0;
+    var shape = shapeOf(cur), seen = Object.create(null), n = 0;
     for (var i = 0; i < cells.length; i++){
-      if (tryPlace(shape, cells[i].r, cells[i].g)) return true;
+      var p = tryPlace(shape, cells[i].r, cells[i].g);
+      if (!p) continue;
+      var key = p.map(function(c){ return ck(c.r, c.g); }).sort().join("|");
+      if (!seen[key]){ seen[key] = 1; n++; }
     }
-    return false;
+    return n;
   }
 
   /* ===== 덱 ===== */
@@ -674,6 +876,18 @@
 
   function endGame(){
     over = true;
+    sOver();
+    document.querySelector(".stage").classList.remove("danger");
+    var reg = document.getElementById("reg");
+    reg.innerHTML =
+      '<input id="regName" maxlength="10" placeholder="닉네임" autocomplete="off" spellcheck="false">' +
+      '<button id="regBtn">기록 등록</button>';
+    try { document.getElementById("regName").value = localStorage.getItem("hexiamond.name") || ""; } catch(e){}
+    document.getElementById("regBtn").addEventListener("click", submitScore);
+    document.getElementById("regName").addEventListener("keydown", function(ev){
+      if (ev.key === "Enter") submitScore();
+    });
+    reg.style.display = score > 0 ? "flex" : "none";
     document.getElementById("finalScore").textContent = score.toLocaleString();
     document.getElementById("finalSub").innerHTML =
       "라인 <em>" + lines + "</em> · 최고 콤보 <em>" + bestCombo +
@@ -687,11 +901,115 @@
     cells.forEach(function(c){ c.filled = false; c.node.classList.remove("flash"); });
     score = 0; lines = 0; combo = 0; bestCombo = 0; over = false; busy = false; ghost = null;
     document.getElementById("over").classList.remove("on");
+    document.getElementById("lb").classList.remove("on");
+    document.querySelector(".stage").classList.remove("danger");
     cur = randPiece(); nxt = randPiece();
     renderDeck(); sync(); paint();
   }
 
-  document.getElementById("resetBtn").addEventListener("click", reset);
+  /* ═══════════ 리더보드 ═══════════
+     DB_URL 이 있으면 Firebase Realtime Database REST API 로 전역 랭킹,
+     없으면 localStorage 로 이 브라우저만의 로컬 랭킹. UI 는 동일하다. */
+  function localList(){
+    try { return JSON.parse(localStorage.getItem("hexiamond.scores") || "[]"); }
+    catch(e){ return []; }
+  }
+  function localPush(rec){
+    var a = localList();
+    a.push(rec);
+    a.sort(function(x, y){ return y.score - x.score; });
+    a = a.slice(0, 50);
+    try { localStorage.setItem("hexiamond.scores", JSON.stringify(a)); } catch(e){}
+  }
+  function dbRoot(){ return DB_URL.replace(/\/+$/, ""); }
+
+  function lbFetch(cb){
+    if (!DB_URL){ cb(localList(), false); return; }
+    fetch(dbRoot() + "/scores.json")
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var arr = [];
+        if (d) for (var k in d) if (d[k] && typeof d[k].score === "number") arr.push(d[k]);
+        arr.sort(function(x, y){ return y.score - x.score; });
+        cb(arr, true);
+      })
+      .catch(function(){ cb(localList(), false); });
+  }
+
+  var myKey = null;   // 방금 등록한 기록을 목록에서 강조하기 위한 표식
+  function submitScore(){
+    var input = document.getElementById("regName");
+    var name = (input.value || "").trim().slice(0, 10) || "익명";
+    var btn = document.getElementById("regBtn");
+    btn.disabled = true;
+    btn.textContent = "등록 중…";
+    sUI();
+    try { localStorage.setItem("hexiamond.name", name); } catch(e){}
+
+    var rec = { name: name, score: score, lines: lines, moves: history.length, ts: Date.now() };
+    myKey = rec.name + ":" + rec.ts;
+    localPush(rec);
+
+    function done(){
+      document.getElementById("reg").innerHTML = '<span class="done">기록이 등록되었습니다</span>';
+      openBoard();
+    }
+    if (DB_URL){
+      fetch(dbRoot() + "/scores.json", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rec)
+      }).then(done).catch(done);
+    } else { done(); }
+  }
+
+  function openBoard(){
+    var listEl = document.getElementById("lbList");
+    var footEl = document.getElementById("lbFoot");
+    var modeEl = document.getElementById("lbMode");
+    document.getElementById("lb").classList.add("on");
+    listEl.innerHTML = '<div class="lbempty">불러오는 중…</div>';
+
+    lbFetch(function(arr, online){
+      modeEl.textContent = online ? "전역" : "로컬";
+      modeEl.className = "mode" + (online ? " live" : "");
+      footEl.textContent = online
+        ? "같은 주소를 연 모든 사람의 기록이 함께 쌓입니다."
+        : "이 브라우저에만 저장된 기록입니다. 코드 상단 DB_URL 을 채우면 전역 랭킹이 켜집니다.";
+
+      if (!arr.length){
+        listEl.innerHTML = '<div class="lbempty">아직 기록이 없습니다</div>';
+        return;
+      }
+      listEl.innerHTML = "";
+      arr.slice(0, 20).forEach(function(rec, i){
+        var li = document.createElement("li");
+        if (myKey && rec.name + ":" + rec.ts === myKey) li.className = "me";
+        var nm = String(rec.name || "익명").replace(/[<>&]/g, "");
+        li.innerHTML = '<span class="rk">' + (i + 1) + '</span>' +
+                       '<span class="nm">' + nm + '</span>' +
+                       '<span class="sc">' + Number(rec.score || 0).toLocaleString() + '</span>';
+        listEl.appendChild(li);
+      });
+    });
+  }
+
+  function paintSoundBtn(){
+    var b = document.getElementById("soundBtn");
+    b.textContent = muted ? "사운드 OFF" : "사운드 ON";
+    b.className = muted ? "off" : "";
+  }
+  document.getElementById("soundBtn").addEventListener("click", function(){
+    muted = !muted;
+    try { localStorage.setItem("hexiamond.muted", muted ? "1" : "0"); } catch(e){}
+    paintSoundBtn();
+    if (!muted) sUI();
+  });
+  document.getElementById("lbBtn").addEventListener("click", function(){ sUI(); openBoard(); });
+  document.getElementById("lbClose").addEventListener("click", function(){
+    sUI(); document.getElementById("lb").classList.remove("on");
+  });
+  document.getElementById("resetBtn").addEventListener("click", function(){ sUI(); reset(); });
   document.getElementById("againBtn").addEventListener("click", reset);
   document.getElementById("replayBtn").addEventListener("click", playback);
   document.getElementById("lapseBtn").addEventListener("click", function(){
@@ -699,9 +1017,10 @@
   });
   document.getElementById("rp").addEventListener("click", stopPlayback);
   document.addEventListener("keydown", function(ev){
-    if (ev.key === "Escape") stopPlayback();
+    if (ev.key === "Escape"){ stopPlayback(); document.getElementById("lb").classList.remove("on"); }
   });
 
+  paintSoundBtn();
   reset();
 })();
 </script>
