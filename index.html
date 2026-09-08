@@ -712,15 +712,14 @@
   }
 
   /* ===== 타임랩스 ===== */
-  /* 기본 속도(1×)는 판의 길이와 무관하게 전체가 약 11초에 들어오도록 맞춘 값이다.
+  /* 기본 속도(1×)는 초당 4수 고정. 판이 길든 짧든 한 수의 리듬이 같아서
+     여러 판을 비교해 볼 때 체감이 흔들리지 않는다.
      배속은 재생 중에 바꿔도 다음 수부터 바로 반영된다. */
+  var MOVES_PER_SEC = 4;
   var lapseSpeed = 1;
   try { lapseSpeed = parseFloat(localStorage.getItem("hexiamond.speed")) || 1; } catch(e){}
 
-  function stepMs(){
-    var base = Math.max(46, Math.min(240, 11000 / Math.max(1, history.length)));
-    return base / lapseSpeed;
-  }
+  function stepMs(){ return (1000 / MOVES_PER_SEC) / lapseSpeed; }
   function paintSpeed(){
     var btns = document.getElementById("rpSpd").getElementsByTagName("button");
     for (var i = 0; i < btns.length; i++){
