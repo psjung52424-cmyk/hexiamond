@@ -166,13 +166,6 @@
   }
   .rp .nums b{font-weight:800}
   .rp .nums .s{color:var(--amber)}
-  .rp .spd{display:inline-flex;gap:3px;pointer-events:auto}
-  .rp .spd button{
-    padding:2px 6px;font-size:9px;letter-spacing:.02em;text-transform:none;
-    border-radius:2px;border:1px solid var(--line);background:rgba(20,24,38,.9);color:var(--muted);
-  }
-  .rp .spd button:hover{border-color:var(--rose);color:var(--text)}
-  .rp .spd button.on{border-color:var(--rose);color:var(--rose)}
   .rp .track{position:absolute;left:8%;right:8%;bottom:2px;height:2px;background:var(--line);border-radius:2px}
   .rp .fill{height:100%;width:0;background:var(--rose);border-radius:2px;transition:width .08s linear}
 
@@ -274,12 +267,6 @@
     <div class="rp" id="rp">
       <div class="top"><span class="dot"></span>REPLAY
         <span class="nums"><b id="rpMove">0</b>수 · <b class="s" id="rpScore">0</b></span>
-        <span class="spd" id="rpSpd">
-          <button data-s="0.5">0.5×</button>
-          <button data-s="1">1×</button>
-          <button data-s="2">2×</button>
-          <button data-s="4">4×</button>
-        </span>
       </div>
       <div class="track"><div class="fill" id="rpBar"></div></div>
     </div>
@@ -712,31 +699,10 @@
   }
 
   /* ===== 타임랩스 ===== */
-  /* 기본 속도(1×)는 초당 4수 고정. 판이 길든 짧든 한 수의 리듬이 같아서
-     여러 판을 비교해 볼 때 체감이 흔들리지 않는다.
-     배속은 재생 중에 바꿔도 다음 수부터 바로 반영된다. */
+  /* 재생 속도는 초당 4수 고정. 판이 길든 짧든 한 수의 리듬이 같아야
+     여러 판을 비교해 볼 때 체감이 흔들리지 않는다. */
   var MOVES_PER_SEC = 4;
-  var lapseSpeed = 1;
-  try { lapseSpeed = parseFloat(localStorage.getItem("hexiamond.speed")) || 1; } catch(e){}
-
-  function stepMs(){ return (1000 / MOVES_PER_SEC) / lapseSpeed; }
-  function paintSpeed(){
-    var btns = document.getElementById("rpSpd").getElementsByTagName("button");
-    for (var i = 0; i < btns.length; i++){
-      btns[i].className = parseFloat(btns[i].getAttribute("data-s")) === lapseSpeed ? "on" : "";
-    }
-  }
-  (function bindSpeed(){
-    var wrap = document.getElementById("rpSpd");
-    wrap.addEventListener("click", function(ev){
-      var b = ev.target.closest ? ev.target.closest("button") : null;
-      if (!b) return;
-      lapseSpeed = parseFloat(b.getAttribute("data-s"));
-      try { localStorage.setItem("hexiamond.speed", String(lapseSpeed)); } catch(e){}
-      paintSpeed();
-    });
-    paintSpeed();
-  })();
+  function stepMs(){ return 1000 / MOVES_PER_SEC; }
 
   function playback(){
     if (replaying || !history.length) return;
