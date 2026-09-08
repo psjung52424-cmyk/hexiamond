@@ -544,17 +544,21 @@
 
   function mid(a, b){ return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
 
+  /* 파편 수는 지워지는 칸 수에 따라 줄인다 — 대량 소멸에서 프레임이 튀지 않도록. */
+  function shardCount(n){ return n > 24 ? 2 : (n > 12 ? 3 : 4); }
+
   function shatter(list, hueOf, k){
     if (reduced) return;
-    var power = 0.7 + 0.42 * k;
+    var power = 0.7 + 0.42 * k, per = shardCount(list.length);
     list.forEach(function(c){
+      var color = (typeof hueOf === "function") ? hueOf(c) : hueOf;
       var P = pts(c.r, c.g, c.up);
       var m0 = mid(P[0], P[1]), m1 = mid(P[1], P[2]), m2 = mid(P[2], P[0]);
       var subs = [[P[0], m0, m2], [m0, P[1], m1], [m2, m1, P[2]], [m0, m1, m2]];
-      subs.forEach(function(tri){
+      subs.slice(0, per).forEach(function(tri){
         var pg = document.createElementNS(svgNS, "polygon");
         pg.setAttribute("points", ptsStr(tri));
-        pg.setAttribute("fill", hueOf);
+        pg.setAttribute("fill", color);
         fx.appendChild(pg);
 
         var gx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3;
@@ -609,30 +613,34 @@
   }
 
   /* ===== 배치 ===== */
-  function anchorOf(shape){
-    var mr = 0, mg = 0;
-    shape.forEach(function(c){ mr += c.r; mg += c.g; });
-    mr /= shape.length; mg /= shape.length;
-    var bi = 0, bd = Infinity;
-    shape.forEach(function(c, i){
-      var d = (c.r - mr) * (c.r - mr) * 3 + (c.g - mg) * (c.g - mg);
-      if (d < bd){ bd = d; bi = i; }
-    });
-    return shape[bi];
-  }
+  /* 삼각형의 무게중심 (화면 좌표) */
+  function ccx(c){ return S * (c.g + 1) / 2; }
+  function ccy(c){ return H * (c.r + (c.up ? 2 / 3 : 1 / 3)); }
+
+  /* 커서가 올라간 칸을 조각의 "중심"으로 삼는다.
+     조각의 각 칸을 차례로 그 자리에 맞춰 보고, 놓인 조각의 무게중심이
+     커서에 가장 가까운 배치를 고른다. 커서가 짚은 칸은 항상 조각에 포함된다. */
   function tryPlace(shape, tr, tg){
-    var a = anchorOf(shape), dr = tr - a.r, bg = tg - a.g;
-    var opts = ((((dr + bg) % 2) + 2) % 2 === 0) ? [bg] : [bg + 1, bg - 1];
-    for (var o = 0; o < opts.length; o++){
-      var dg = opts[o], out = [], ok = true;
+    var target = cellMap[ck(tr, tg)];
+    if (!target || target.filled) return null;
+    var tx = ccx(target), ty = ccy(target);
+    var best = null, bestD = Infinity;
+
+    for (var a = 0; a < shape.length; a++){
+      var dr = tr - shape[a].r, dg = tg - shape[a].g;
+      if ((((dr + dg) % 2) + 2) % 2 !== 0) continue;   // 방향이 맞지 않는 기준칸은 건너뛴다
+      var out = [], ok = true, sx = 0, sy = 0;
       for (var i = 0; i < shape.length; i++){
         var cc = cellMap[ck(shape[i].r + dr, shape[i].g + dg)];
         if (!cc || cc.filled){ ok = false; break; }
-        out.push(cc);
+        out.push(cc); sx += ccx(cc); sy += ccy(cc);
       }
-      if (ok) return out;
+      if (!ok) continue;
+      sx /= out.length; sy /= out.length;
+      var d = (sx - tx) * (sx - tx) + (sy - ty) * (sy - ty);
+      if (d < bestD){ bestD = d; best = out; }
     }
-    return null;
+    return best;
   }
   function fullBandsIf(placed){
     var mark = Object.create(null);
@@ -687,23 +695,13 @@
       full.forEach(function(b){ b.cells.forEach(function(c){ doomed[ck(c.r, c.g)] = b.hue; }); });
       history.push({ keys: pkeys, score: score, cleared: doomed, k: k, hue: full[0].hue });
 
-      busy = true;
+      /* 잔상 없이 즉시 비운다. 사라지는 모습은 오버레이의 파편이 대신 보여주므로
+         보드를 붙잡고 입력을 막을 이유가 없다. */
+      var doomedCells = Object.keys(doomed).map(function(key){ return cellMap[key]; });
+      doomedCells.forEach(function(c){ c.filled = false; });
+      shatter(doomedCells, function(c){ return HUE[doomed[ck(c.r, c.g)]]; }, k);
       shock(full[0].hue, k);
-      Object.keys(doomed).forEach(function(key){
-        var c = cellMap[key];
-        c.node.setAttribute("fill", HUE[doomed[key]]);
-        c.node.classList.add("flash");
-        shatter([c], HUE[doomed[key]], k);
-      });
-      setTimeout(function(){
-        Object.keys(doomed).forEach(function(key){
-          var c = cellMap[key];
-          c.filled = false;
-          c.node.classList.remove("flash");
-        });
-        busy = false;
-        advance();
-      }, 340);
+      advance();
     } else {
       combo = 0;
       history.push({ keys: pkeys, score: score, cleared: null, k: 0, hue: "amber" });
@@ -782,19 +780,12 @@
 
       var step = stepMs();
       if (mv.cleared){
-        var keys = Object.keys(mv.cleared);
-        keys.forEach(function(k){
-          var c = cellMap[k];
-          c.node.setAttribute("fill", HUE[mv.cleared[k]]);
-          shatter([c], HUE[mv.cleared[k]], mv.k);
-        });
+        var dc = Object.keys(mv.cleared).map(function(key){ return cellMap[key]; });
+        dc.forEach(function(c){ c.filled = false; });
+        shatter(dc, function(c){ return HUE[mv.cleared[ck(c.r, c.g)]]; }, mv.k);
         shock(mv.hue, mv.k);
-        setTimeout(function(){
-          if (!replaying) return;
-          keys.forEach(function(k){ cellMap[k].filled = false; });
-          paint();
-          setTimeout(next, Math.max(24, stepMs() * 0.55));
-        }, Math.min(210, step));
+        paint();
+        setTimeout(next, Math.max(30, step * 0.7));
       } else {
         setTimeout(next, step);
       }
