@@ -83,7 +83,7 @@
 
   /* ---------- board ---------- */
   .stage{position:relative}
-  svg.board{display:block;width:100%;height:auto;touch-action:manipulation}
+  svg.board{display:block;width:100%;height:auto;touch-action:none}
   polygon{stroke:var(--cell-edge);stroke-width:2.2;stroke-linejoin:round;transition:fill .11s linear,opacity .11s linear}
   polygon.hit{cursor:pointer}
   .flash{animation:pop .16s ease-out forwards;transform-box:fill-box;transform-origin:center}
@@ -122,8 +122,21 @@
 
   /* ---------- deck ---------- */
   .deck{
-    display:grid;grid-template-columns:1fr auto;gap:var(--sp);align-items:stretch;
+    display:grid;grid-template-columns:1fr auto auto;gap:var(--sp);align-items:stretch;
   }
+  .swap{
+    width:40px;padding:0;flex:none;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .swap svg{width:18px;height:18px;display:block}
+  .swap:disabled{opacity:.26;cursor:default;border-color:var(--line);color:var(--dim)}
+  .swap:disabled:hover{border-color:var(--line);color:var(--dim)}
+  .lockTag{
+    position:absolute;top:6px;right:8px;
+    font-family:"Oxanium",sans-serif;font-weight:700;font-size:8px;letter-spacing:.14em;
+    color:var(--rose);display:none;
+  }
+  .locked .lockTag{display:block}
   .cur{
     background:var(--panel);border:1px solid var(--amber);border-radius:3px;
     height:clamp(86px,22vw,104px);position:relative;
@@ -368,11 +381,18 @@
   </div>
 
   <div class="deck">
-    <div class="cur" id="cur"><span class="tag">Now</span></div>
-    <div class="nx" id="nx"><span class="tag">Next</span></div>
+    <div class="cur" id="cur"><span class="tag">Now</span><span class="lockTag">LOCKED</span></div>
+    <button class="swap" id="swapBtn" aria-label="조각 교체">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="17 2 21 6 17 10"></polyline><path d="M3 12V10a4 4 0 0 1 4-4h14"></path>
+        <polyline points="7 22 3 18 7 14"></polyline><path d="M21 12v2a4 4 0 0 1-4 4H3"></path>
+      </svg>
+    </button>
+    <div class="nx" id="nx"><span class="tag">Next</span><span class="lockTag">LOCKED</span></div>
   </div>
 
-  <div class="hint">조각은 방향 고정 · 보드를 클릭해 배치</div>
+  <div class="hint">조각을 끌어 보드에 놓으세요 · 교체는 한 수에 한 번</div>
 
   <div class="btns">
     <button id="lbBtn">랭킹</button>
@@ -577,7 +597,7 @@
   function randPiece(){
     var t = Math.random() * WSUM, def = PIECES[PIECES.length - 1];
     for (var i = 0; i < PIECES.length; i++){ t -= PIECES[i].w; if (t <= 0){ def = PIECES[i]; break; } }
-    return { def: def, rot: Math.floor(Math.random() * def.ori.length) };
+    return { def: def, rot: Math.floor(Math.random() * def.ori.length), locked: false };
   }
   function shapeOf(p){ return p.def.ori[p.rot % p.def.ori.length]; }
 
@@ -585,6 +605,7 @@
   var score = 0, lines = 0, combo = 0, bestCombo = 0, best = 0, over = false, busy = false;
   var cur = null, nxt = null, ghost = null;
   var history = [], replaying = false, cancelPlayback = null;   // 타임랩스용 기보
+  var swapUsed = false;                                          // 이번 수에 교체를 썼는가
 
   try { best = parseInt(localStorage.getItem("hexiamond.best") || "0", 10) || 0; } catch(e){}
 
@@ -598,12 +619,9 @@
     var el = document.createElementNS(svgNS, "polygon");
     el.setAttribute("points", ptsStr(pts(c.r, c.g, c.up)));
     el.setAttribute("class", "hit");
-    el.addEventListener("pointerenter", function(){ hover(c); });
-    el.addEventListener("pointerdown", function(ev){ ev.preventDefault(); hover(c); commit(); });
     board.appendChild(el);
     c.node = el;
   });
-  board.addEventListener("pointerleave", function(){ ghost = null; paint(); });
 
   var fx = document.createElementNS(svgNS, "g");
   fx.setAttribute("id", "fx");
@@ -730,6 +748,78 @@
     paint();
   }
 
+  /* ===== 좌표 → 칸 =====
+     손가락이 조각을 가리므로 드래그 중에는 표본점을 위로 띄운다.
+     그 지점이 어느 삼각형 안에 있는지 직접 판정한다 — 손가락 아래 요소를
+     읽는 방식은 띄운 만큼 어긋나기 때문이다. */
+  function inTri(px, py, t){
+    function side(ax, ay, bx, by){ return (px - bx) * (ay - by) - (ax - bx) * (py - by); }
+    var d1 = side(t[0][0], t[0][1], t[1][0], t[1][1]);
+    var d2 = side(t[1][0], t[1][1], t[2][0], t[2][1]);
+    var d3 = side(t[2][0], t[2][1], t[0][0], t[0][1]);
+    var neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    var pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+    return !(neg && pos);
+  }
+  function cellAt(clientX, clientY){
+    var rect = board.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    var vb = board.viewBox.baseVal;
+    var ux = vb.x + (clientX - rect.left) / rect.width * vb.width;
+    var uy = vb.y + (clientY - rect.top) / rect.height * vb.height;
+    var r0 = Math.floor(uy / H), g0 = Math.floor(ux / (S / 2)) - 1;
+    for (var dr = -1; dr <= 1; dr++){
+      for (var k = 0; k < 4; k++){
+        var c = cellMap[ck(r0 + dr, g0 + k)];
+        if (c && inTri(ux, uy, pts(c.r, c.g, c.up))) return c;
+      }
+    }
+    return null;
+  }
+
+  /* ===== 드래그 배치 ===== */
+  var dragging = false, dragLift = 0, dragFromBoard = false;
+  var stage = document.querySelector(".stage");
+
+  function sample(ev){
+    var c = cellAt(ev.clientX, ev.clientY - dragLift);
+    if (c) hover(c);
+    else { ghost = null; paint(); }
+  }
+  function onMove(ev){ if (dragging){ ev.preventDefault(); sample(ev); } }
+  function onUp(){
+    if (!dragging) return;
+    dragging = false;
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    document.removeEventListener("pointercancel", onUp);
+    if (ghost) commit();
+    else { if (dragFromBoard) sDeny(); ghost = null; paint(); }
+  }
+  function beginDrag(ev, fromBoard){
+    if (over || busy || replaying || !cur) return;
+    closePanels();
+    ev.preventDefault();
+    dragging = true;
+    dragFromBoard = fromBoard;
+    dragLift = (ev.pointerType === "touch") ? 46 : 0;   // 손가락 위로 띄우는 거리(px)
+    document.addEventListener("pointermove", onMove, { passive: false });
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    sample(ev);
+  }
+
+  board.addEventListener("pointerdown", function(ev){ beginDrag(ev, true); });
+  /* 마우스는 누르지 않아도 미리보기가 따라다닌다 */
+  board.addEventListener("pointermove", function(ev){
+    if (dragging || ev.pointerType === "touch") return;
+    var c = cellAt(ev.clientX, ev.clientY);
+    if (c) hover(c); else { ghost = null; paint(); }
+  });
+  board.addEventListener("pointerleave", function(){
+    if (!dragging){ ghost = null; paint(); }
+  });
+
   var LABELS = ["", "CLEAR", "DOUBLE", "TRIPLE", "QUAD", "PENTA", "HEXA"];
   function toast(k, gained, hue){
     var t = document.getElementById("toast");
@@ -848,26 +938,45 @@
 
   function advance(){
     cur = nxt; nxt = randPiece();
+    swapUsed = false;               // 교체는 한 수에 한 번
     renderDeck();
     paint();
+    checkDanger();
+  }
 
-    var n = countMoves();
-    if (n === 0){ endGame(); return; }
-
+  /* 놓을 자리가 없으면 종료. 단 교체가 남아 있고 다음 조각은 들어간다면
+     아직 기회가 있으므로 끝내지 않고 교체하라고 알린다. */
+  function checkDanger(){
     var st = document.querySelector(".stage");
-    var wasDanger = st.classList.contains("danger");
+    var tag = document.getElementById("warnTag");
+    var n = countMovesFor(cur);
+    var canSwap = !!(cur && nxt && !swapUsed && !cur.locked);
+
+    if (n === 0){
+      if (canSwap && countMovesFor(nxt) > 0){
+        tag.textContent = "교체하지 않으면 놓을 자리가 없습니다";
+        st.classList.add("danger");
+        sWarn();
+        return;
+      }
+      endGame();
+      return;
+    }
+
+    var was = st.classList.contains("danger");
     if (n <= 4){
+      tag.textContent = "놓을 자리가 얼마 없습니다";
       st.classList.add("danger");
-      if (!wasDanger) sWarn();           // 위험 구간 진입 시 1회만 경고
+      if (!was) sWarn();           // 위험 구간 진입 시 1회만 경고
     } else {
       st.classList.remove("danger");
     }
   }
 
-  /* 현재 조각(방향 고정)이 들어갈 수 있는 서로 다른 자리의 개수 */
-  function countMoves(){
-    if (!cur) return 0;
-    var shape = shapeOf(cur), seen = Object.create(null), n = 0;
+  /* 그 조각(방향 고정)이 들어갈 수 있는 서로 다른 자리의 개수 */
+  function countMovesFor(piece){
+    if (!piece) return 0;
+    var shape = shapeOf(piece), seen = Object.create(null), n = 0;
     for (var i = 0; i < cells.length; i++){
       var p = tryPlace(shape, cells[i].r, cells[i].g);
       if (!p) continue;
@@ -878,14 +987,18 @@
   }
 
   /* ===== 덱 ===== */
+  /* 미리보기는 배율을 고정한다. 칸에 꽉 차게 확대하면 삼각형 1칸과
+     4칸짜리 큰 삼각형이 똑같이 보여 구분이 안 된다. */
+  var MINI_W = 132, MINI_H = 96;
   function mini(shape, upC, dnC){
     var poly = shape.map(function(c){ return pts(c.r, c.g, c.up); });
     var xs = [], ys = [];
     poly.forEach(function(t){ t.forEach(function(q){ xs.push(q[0]); ys.push(q[1]); }); });
-    var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
-    var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2;
+    var cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
     var svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", (x0 - 3) + " " + (y0 - 3) + " " + (x1 - x0 + 6) + " " + (y1 - y0 + 6));
+    svg.setAttribute("viewBox",
+      (cx - MINI_W / 2).toFixed(1) + " " + (cy - MINI_H / 2).toFixed(1) + " " + MINI_W + " " + MINI_H);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     poly.forEach(function(t, i){
       var pg = document.createElementNS(svgNS, "polygon");
@@ -897,10 +1010,31 @@
   }
   function renderDeck(){
     var cEl = document.getElementById("cur"), nEl = document.getElementById("nx");
-    cEl.innerHTML = '<span class="tag">Now</span>';
-    nEl.innerHTML = '<span class="tag">Next</span>';
+    cEl.innerHTML = '<span class="tag">Now</span><span class="lockTag">LOCKED</span>';
+    nEl.innerHTML = '<span class="tag">Next</span><span class="lockTag">LOCKED</span>';
     if (cur) cEl.appendChild(mini(shapeOf(cur), "#C2CFE8", "#8E9DC0"));
     if (nxt) nEl.appendChild(mini(shapeOf(nxt), "#C2CFE8", "#8E9DC0"));
+    cEl.className = "cur" + (cur && cur.locked ? " locked" : "");
+    nEl.className = "nx"  + (nxt && nxt.locked ? " locked" : "");
+    document.getElementById("swapBtn").disabled =
+      !cur || !nxt || over || replaying || swapUsed || cur.locked;
+  }
+
+  /* 교체 — 한 수에 한 번, 밀려난 조각은 다음 차례에 교체할 수 없다.
+     나쁜 조각을 피할 수는 있지만 없앨 수는 없다. 그 사이 보드는 더 차므로
+     함부로 쓰면 오히려 불리해진다. */
+  function swapPieces(){
+    if (over || busy || replaying || !cur || !nxt) return;
+    if (swapUsed || cur.locked){ sDeny(); return; }
+    var t = cur; cur = nxt; nxt = t;
+    nxt.locked = true;      // 밀려난 조각에 표식
+    cur.locked = false;
+    swapUsed = true;
+    ghost = null;
+    sUI(); buzz(14);
+    renderDeck();
+    checkDanger();
+    paint();
   }
 
   /* ===== HUD ===== */
@@ -943,6 +1077,8 @@
     history = [];
     cells.forEach(function(c){ c.filled = false; c.node.classList.remove("flash"); });
     score = 0; lines = 0; combo = 0; bestCombo = 0; over = false; busy = false; ghost = null;
+    swapUsed = false; dragging = false;
+    document.getElementById("warnTag").textContent = "놓을 자리가 얼마 없습니다";
     document.getElementById("over").classList.remove("on");
     document.getElementById("lb").classList.remove("on");
     document.querySelector(".stage").classList.remove("danger");
@@ -1098,6 +1234,8 @@
     setTimeout(function(){ b.textContent = "삭제"; }, 1800);
     sync(); sUI();
   });
+
+  document.getElementById("swapBtn").addEventListener("click", swapPieces);
 
   /* ===== 하단 바 ===== */
   document.getElementById("lbBtn").addEventListener("click", function(){
